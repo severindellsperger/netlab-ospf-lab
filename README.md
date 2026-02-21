@@ -9,13 +9,21 @@ A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https
 ```mermaid
 graph TB
     subgraph area0["Area 0 — Backbone"]
-        lan0(["Backbone LAN\n172.16.0.0/24\nDR/BDR election"])
-        bb["bb\nlo: 10.0.0.1"]
-        abr1["abr1\nlo: 10.0.0.2"]
-        abr2["abr2\nlo: 10.0.0.3"]
-        abr3["abr3\nlo: 10.0.0.4"]
-        abr4["abr4\nlo: 10.0.0.5"]
-        abr5["abr5\nlo: 10.0.0.6"]
+        lan0(["`Backbone LAN
+        172.16.0.0/24
+        DR/BDR election`"])
+        bb["`bb
+        lo: 10.0.0.1`"]
+        abr1["`abr1
+        lo: 10.0.0.2`"]
+        abr2["`abr2
+        lo: 10.0.0.3`"]
+        abr3["`abr3
+        lo: 10.0.0.4`"]
+        abr4["`abr4
+        lo: 10.0.0.5`"]
+        abr5["`abr5
+        lo: 10.0.0.6`"]
     end
 
     lan0 -- "172.16.0.1" --- bb
@@ -26,35 +34,44 @@ graph TB
     lan0 -- "172.16.0.6" --- abr5
 
     subgraph area1["Area 1 — Regular Area"]
-        r1["r1\nlo: 10.0.0.7"]
+        r1["`r1
+        lo: 10.0.0.7`"]
     end
     abr1 -- "10.1.0.0/30" --- r1
 
     subgraph area2["Area 2 — Stub Area"]
-        r2["r2\nlo: 10.0.0.8"]
+        r2["`r2
+        lo: 10.0.0.8`"]
     end
     abr2 -- "10.1.0.4/30" --- r2
 
     subgraph area3["Area 3 — Totally Stubby Area"]
-        r3["r3\nlo: 10.0.0.9"]
+        r3["`r3
+        lo: 10.0.0.9`"]
     end
     abr3 -- "10.1.0.8/30" --- r3
 
     subgraph area4["Area 4 — NSSA"]
-        r4["r4 (ASBR)\nlo: 10.0.0.10"]
+        r4["`r4 (ASBR)
+        lo: 10.0.0.10`"]
     end
     abr4 -- "10.1.0.12/30" --- r4
 
-    ext4[("10.99.0.0/24\nexternal, not in OSPF\nr4: 10.99.0.10")]
-    r4 -. "redistribute connected\nas Type-7 LSA" .-> ext4
+    ext4["`10.99.0.0/24
+    external, not in OSPF
+    r4: 10.99.0.10`"]
+    r4 -. "redistribute connected as Type-7 LSA" .-> ext4
 
     subgraph area5["Area 5 — Totally NSSA"]
-        r5["r5 (ASBR)\nlo: 10.0.0.11"]
+        r5["`r5 (ASBR)
+        lo: 10.0.0.11`"]
     end
     abr5 -- "10.1.0.16/30" --- r5
 
-    ext5[("10.100.0.0/24\nexternal, not in OSPF\nr5: 10.100.0.11")]
-    r5 -. "redistribute connected\nas Type-7 LSA" .-> ext5
+    ext5["`10.100.0.0/24
+    external, not in OSPF
+    r5: 10.100.0.11`"]
+    r5 -. "redistribute connected as Type-7 LSA" .-> ext5
 ```
 
 | Router | Role | Area |
@@ -170,6 +187,12 @@ netlab connect r3 -- vtysh -c "show ip ospf database"
 
 # Show the routing table on r2 (Stub – external routes replaced by a default route)
 netlab connect r2 -- vtysh -c "show ip route ospf"
+```
+
+You can also connect directly to a container's interactive FRR shell using `docker exec`. The container name follows the pattern `clab-<lab-name>-<node>`, for example:
+
+```bash
+docker exec -it clab-netlabospfla-r5 vtysh
 ```
 
 ---
