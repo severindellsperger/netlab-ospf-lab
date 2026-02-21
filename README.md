@@ -44,7 +44,8 @@ graph TB
         external stub`")]
     end
     abr4 --- r4
-    r4 -. "redistribute\n(Type-7 LSA)" .-> ext4
+    r4 -. "`redistribute
+    (Type-7 LSA)`" .-> ext4
 
     subgraph area5["Area 5 — Totally NSSA"]
         r5["r5 / ASBR"]
