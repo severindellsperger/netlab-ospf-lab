@@ -9,51 +9,51 @@ A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https
 ```mermaid
 graph TB
     subgraph area0["Area 0 — Backbone"]
-        lan0(["Backbone LAN\nDR/BDR election"])
-        bb["bb"]
-        abr1["abr1 (ABR)"]
-        abr2["abr2 (ABR)"]
-        abr3["abr3 (ABR)"]
-        abr4["abr4 (ABR)"]
-        abr5["abr5 (ABR)"]
+        lan0(["Backbone LAN\n172.16.0.0/24\nDR/BDR election"])
+        bb["bb\nlo: 10.0.0.1"]
+        abr1["abr1\nlo: 10.0.0.2"]
+        abr2["abr2\nlo: 10.0.0.3"]
+        abr3["abr3\nlo: 10.0.0.4"]
+        abr4["abr4\nlo: 10.0.0.5"]
+        abr5["abr5\nlo: 10.0.0.6"]
     end
 
-    bb --- lan0
-    abr1 --- lan0
-    abr2 --- lan0
-    abr3 --- lan0
-    abr4 --- lan0
-    abr5 --- lan0
+    lan0 -- "172.16.0.1" --- bb
+    lan0 -- "172.16.0.2" --- abr1
+    lan0 -- "172.16.0.3" --- abr2
+    lan0 -- "172.16.0.4" --- abr3
+    lan0 -- "172.16.0.5" --- abr4
+    lan0 -- "172.16.0.6" --- abr5
 
     subgraph area1["Area 1 — Regular Area"]
-        r1["r1"]
+        r1["r1\nlo: 10.0.0.7"]
     end
-    abr1 --- r1
+    abr1 -- "10.1.0.0/30" --- r1
 
     subgraph area2["Area 2 — Stub Area"]
-        r2["r2"]
+        r2["r2\nlo: 10.0.0.8"]
     end
-    abr2 --- r2
+    abr2 -- "10.1.0.4/30" --- r2
 
     subgraph area3["Area 3 — Totally Stubby Area"]
-        r3["r3"]
+        r3["r3\nlo: 10.0.0.9"]
     end
-    abr3 --- r3
+    abr3 -- "10.1.0.8/30" --- r3
 
     subgraph area4["Area 4 — NSSA"]
-        r4["r4 (ASBR)"]
+        r4["r4 (ASBR)\nlo: 10.0.0.10"]
     end
-    abr4 --- r4
+    abr4 -- "10.1.0.12/30" --- r4
 
-    ext4[("10.99.0.0/24\n(external, not in OSPF)")]
+    ext4[("10.99.0.0/24\nexternal, not in OSPF\nr4: 10.99.0.10")]
     r4 -. "redistribute connected\nas Type-7 LSA" .-> ext4
 
     subgraph area5["Area 5 — Totally NSSA"]
-        r5["r5 (ASBR)"]
+        r5["r5 (ASBR)\nlo: 10.0.0.11"]
     end
-    abr5 --- r5
+    abr5 -- "10.1.0.16/30" --- r5
 
-    ext5[("10.100.0.0/24\n(external, not in OSPF)")]
+    ext5[("10.100.0.0/24\nexternal, not in OSPF\nr5: 10.100.0.11")]
     r5 -. "redistribute connected\nas Type-7 LSA" .-> ext5
 ```
 
