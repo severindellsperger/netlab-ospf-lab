@@ -40,7 +40,8 @@ graph TB
 
     subgraph area4["Area 4 — NSSA"]
         r4["r4 / ASBR"]
-        ext4[("10.99.0.0/24\nexternal stub")]
+        ext4[("`10.99.0.0/24
+        external stub`")]
     end
     abr4 --- r4
     r4 -. "redistribute\n(Type-7 LSA)" .-> ext4
