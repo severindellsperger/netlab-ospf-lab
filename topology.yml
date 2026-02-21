@@ -1,0 +1,105 @@
+---
+message: |
+  OSPF multi-area lab demonstrating various OSPF area types:
+  - Area 0: Backbone with a LAN switch (enabling DR/BDR election)
+  - Area 1: Standard area
+  - Area 2: Stub area
+  - Area 3: Totally stub area
+  - Area 4: Not-so-stubby area (NSSA)
+  - Area 5: Totally not-so-stubby area (Totally NSSA)
+
+module: [ ospf ]
+plugin: [ ospf.areas ]
+defaults.device: frr
+
+ospf:
+  areas:
+  - area: 2
+    kind: stub
+  - area: 3
+    kind: stub
+    inter_area: false
+  - area: 4
+    kind: nssa
+  - area: 5
+    kind: nssa
+    inter_area: false
+
+nodes:
+  # Backbone ABRs
+  abr1:
+    ospf.area: 0
+  abr2:
+    ospf.area: 0
+  # Area 1 - Standard area
+  r1a:
+    ospf.area: 1
+  r1b:
+    ospf.area: 1
+  # Area 2 - Stub area
+  r2a:
+    ospf.area: 2
+  r2b:
+    ospf.area: 2
+  # Area 3 - Totally stub area
+  r3a:
+    ospf.area: 3
+  r3b:
+    ospf.area: 3
+  # Area 4 - Not-so-stubby area (NSSA)
+  r4a:
+    ospf.area: 4
+  r4b:
+    ospf.area: 4
+  # Area 5 - Totally not-so-stubby area
+  r5a:
+    ospf.area: 5
+  r5b:
+    ospf.area: 5
+
+links:
+# Backbone - LAN segment for DR/BDR election (not p2p)
+- abr1:
+  abr2:
+  type: lan
+  ospf.area: 0
+
+# Area 1 - Standard area
+- abr1:
+  r1a:
+  ospf.area: 1
+- r1a:
+  r1b:
+  ospf.area: 1
+
+# Area 2 - Stub area
+- abr1:
+  r2a:
+  ospf.area: 2
+- r2a:
+  r2b:
+  ospf.area: 2
+
+# Area 3 - Totally stub area
+- abr2:
+  r3a:
+  ospf.area: 3
+- r3a:
+  r3b:
+  ospf.area: 3
+
+# Area 4 - Not-so-stubby area (NSSA)
+- abr2:
+  r4a:
+  ospf.area: 4
+- r4a:
+  r4b:
+  ospf.area: 4
+
+# Area 5 - Totally not-so-stubby area
+- abr2:
+  r5a:
+  ospf.area: 5
+- r5a:
+  r5b:
+  ospf.area: 5
