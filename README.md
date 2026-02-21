@@ -9,6 +9,7 @@ A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https
 ```mermaid
 graph TB
     subgraph area0["Area 0 — Backbone"]
+        lan0(["Backbone LAN\nDR/BDR election"])
         bb["bb"]
         abr1["abr1 (ABR)"]
         abr2["abr2 (ABR)"]
@@ -17,11 +18,12 @@ graph TB
         abr5["abr5 (ABR)"]
     end
 
-    bb --- abr1
-    bb --- abr2
-    bb --- abr3
-    bb --- abr4
-    bb --- abr5
+    bb --- lan0
+    abr1 --- lan0
+    abr2 --- lan0
+    abr3 --- lan0
+    abr4 --- lan0
+    abr5 --- lan0
 
     subgraph area1["Area 1 — Regular Area"]
         r1["r1"]
@@ -74,7 +76,7 @@ graph TB
 ## OSPF Area Types Explained
 
 ### Area 0 — Backbone Area
-Every OSPF autonomous system has exactly one backbone area (`0.0.0.0`). All other areas must connect directly to it (via an ABR) to exchange routing information. The backbone carries all inter-area and external routes as Type-3/4/5 LSAs. In this lab `bb` is the central backbone router; the five ABRs (`abr1`–`abr5`) each straddle the backbone and their respective non-backbone area.
+Every OSPF autonomous system has exactly one backbone area (`0.0.0.0`). All other areas must connect directly to it (via an ABR) to exchange routing information. The backbone carries all inter-area and external routes as Type-3/4/5 LSAs. In this lab `bb` is the central backbone router and the five ABRs (`abr1`–`abr5`) all share a **single broadcast LAN segment** in Area 0. Because the segment has more than two routers, OSPF performs **DR/BDR election** on it — one router is elected Designated Router (DR) and another is elected Backup Designated Router (BDR) to reduce the number of adjacencies and LSA flooding on the segment.
 
 ### Area 1 — Regular (Standard) Area
 A regular area behaves identically to the backbone: it receives all LSA types (Type 1–5). Every prefix in the OSPF domain, including external routes redistributed anywhere else, is visible to `r1`. This is the default area type and requires no extra configuration.

@@ -91,12 +91,15 @@ nodes:
 
 links:
 
-  # ── Area 0: Backbone connections ────────────────────────────────────────────
-  - bb-abr1
-  - bb-abr2
-  - bb-abr3
-  - bb-abr4
-  - bb-abr5
+  # ── Area 0: Backbone LAN (broadcast) ─────────────────────────────────────────
+  # All backbone routers share a single broadcast segment.
+  # OSPF runs DR/BDR election on this multi-access network.
+  - bb:
+    abr1:
+    abr2:
+    abr3:
+    abr4:
+    abr5:
 
   # ── Area 1: Regular Area ────────────────────────────────────────────────────
   - abr1:
