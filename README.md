@@ -84,7 +84,7 @@ A regular area behaves identically to the backbone: it receives all LSA types (T
 ### Area 2 — Stub Area
 A stub area blocks **Type-5 LSAs** (AS-external routes). Instead of carrying external prefixes, the ABR (`abr2`) injects a single **default route** (`0.0.0.0/0`) into the area. This reduces the size of the LSDB and is ideal for sites that have only one exit point toward the rest of the network. Router `r2` reaches all external destinations through that default route.
 
-Configuration required on **all routers in Area 2** (both `abr2` and `r2`):
+The `ospf.areas` plugin automatically applies the equivalent of:
 ```
 router ospf
  area 0.0.0.2 stub
@@ -93,7 +93,7 @@ router ospf
 ### Area 3 — Totally Stubby Area
 A totally stubby area is a Cisco-originated extension (supported by FRR) that blocks **Type-3, -4, and -5 LSAs**, leaving only the default route injected by the ABR. Router `r3` has the smallest possible LSDB: only intra-area routes and one default route. This is the most restrictive area type and is ideal for stub sites with a single upstream ABR.
 
-Configuration required on **all routers in Area 3**:
+The `ospf.areas` plugin automatically applies the equivalent of:
 ```
 router ospf
  area 0.0.0.3 stub no-summary
@@ -103,32 +103,24 @@ router ospf
 ### Area 4 — Not-So-Stubby Area (NSSA)
 An NSSA blocks Type-5 external LSAs like a stub area, **but allows an ASBR inside the area** to redistribute external routes. Instead of Type-5, the ASBR generates **Type-7 LSAs** that are local to the NSSA. The ABR (`abr4`) translates selected Type-7 LSAs into Type-5 LSAs before flooding them into the backbone. In this lab `r4` acts as the ASBR and redistributes the `10.99.0.0/24` stub network.
 
-Configuration required on **all routers in Area 4** (`abr4` and `r4`):
+The `ospf.areas` plugin automatically applies the equivalent of:
 ```
 router ospf
  area 0.0.0.4 nssa
 ```
-On `r4` additionally enable redistribution of the connected stub prefix:
-```
-router ospf
- redistribute connected
-```
+The stub prefix (`10.99.0.0/24`) is a directly connected network on `r4`; NetLab's OSPF module includes it in OSPF automatically — no manual redistribution is needed.
 
 ### Area 5 — Totally NSSA (NSSA No-Summary)
 A Totally NSSA combines the properties of NSSA and Totally Stubby: Type-5 external LSAs are blocked *and* Type-3 inter-area summary LSAs are suppressed. An ASBR inside the area can still inject external routes as **Type-7 LSAs** (converted at the ABR to Type-5 for the backbone). Router `r5` receives only intra-area routes and a single default route from `abr5`, while its own external prefix (`10.100.0.0/24`) is redistributed as a Type-7 LSA.
 
-Configuration required on **all routers in Area 5** (`abr5` and `r5`):
+The `ospf.areas` plugin automatically applies the equivalent of:
 ```
 router ospf
  area 0.0.0.5 nssa no-summary
 ```
 > `no-summary` added to the `nssa` keyword suppresses Type-3 summary LSAs, making it "Totally NSSA".
 
-On `r5` additionally enable redistribution of the connected stub prefix:
-```
-router ospf
- redistribute connected
-```
+The stub prefix (`10.100.0.0/24`) is a directly connected network on `r5`; NetLab's OSPF module includes it in OSPF automatically — no manual redistribution is needed.
 
 ---
 
@@ -138,18 +130,14 @@ router ospf
 Follow the official installation guide:
 👉 **https://netlab.tools/install/**
 
-The guide covers all supported installation methods (pip, pip with Containerlab, virtual environments, etc.).
+NetLab installs all required dependencies (including Containerlab and the FRR container image) automatically. The quickest way to get started:
 
-### 2. Install Containerlab
-NetLab uses Containerlab as the lab provider. Follow:
-👉 **https://containerlab.dev/install/**
-
-### 3. Pull the FRR container image
 ```bash
-docker pull frrouting/frr:latest
+python3 -m pip install networklab
+netlab install --all
 ```
 
-### 4. Clone this repository
+### 2. Clone this repository
 ```bash
 git clone https://github.com/severindellsperger/netlab-ospf-lab.git
 cd netlab-ospf-lab
@@ -165,9 +153,10 @@ netlab up
 
 `netlab up` will:
 1. Parse `topology.yml` and calculate IP addresses and OSPF parameters.
-2. Generate Containerlab and FRR configuration files.
-3. Start all containers via Containerlab.
-4. Deploy the generated FRR configuration to every container.
+2. Use the `ospf.areas` plugin to automatically configure stub, totally-stubby, NSSA, and totally-NSSA area types on every router.
+3. Generate Containerlab and FRR configuration files.
+4. Start all containers via Containerlab.
+5. Deploy the generated FRR configuration to every container.
 
 After a few seconds all OSPF adjacencies should come up. You can verify:
 
@@ -180,38 +169,6 @@ netlab connect r3 -- vtysh -c "show ip ospf database"
 
 # Show the routing table on r2 (Stub – external routes replaced by a default route)
 netlab connect r2 -- vtysh -c "show ip route ospf"
-```
-
-### Apply stub / NSSA area type configuration
-
-NetLab provisions the base OSPF topology automatically. To activate the area types defined in this lab, connect to each router and enter the commands listed in the [OSPF Area Types Explained](#ospf-area-types-explained) section above, or use the following helper loop:
-
-```bash
-# Area 2 – Stub
-for node in abr2 r2; do
-  netlab connect $node -- vtysh -c "conf t" -c "router ospf" -c "area 0.0.0.2 stub"
-done
-
-# Area 3 – Totally Stubby
-for node in abr3 r3; do
-  netlab connect $node -- vtysh -c "conf t" -c "router ospf" -c "area 0.0.0.3 stub no-summary"
-done
-
-# Area 4 – NSSA
-for node in abr4 r4; do
-  netlab connect $node -- vtysh -c "conf t" -c "router ospf" -c "area 0.0.0.4 nssa"
-done
-
-# r4 – redistribute the external stub prefix
-netlab connect r4 -- vtysh -c "conf t" -c "router ospf" -c "redistribute connected"
-
-# Area 5 – Totally NSSA
-for node in abr5 r5; do
-  netlab connect $node -- vtysh -c "conf t" -c "router ospf" -c "area 0.0.0.5 nssa no-summary"
-done
-
-# r5 – redistribute the external stub prefix
-netlab connect r5 -- vtysh -c "conf t" -c "router ospf" -c "redistribute connected"
 ```
 
 ---

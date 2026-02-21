@@ -18,10 +18,24 @@ defaults:
   provider: clab
 
 module: [ ospf ]
+plugin: [ ospf.areas ]
 
 # All nodes default to Area 0 (backbone) unless overridden at node level.
+# The ospf.areas plugin auto-configures stub, totally-stubby, NSSA, and
+# totally-NSSA area types on every router in the respective area.
 ospf:
   area: 0.0.0.0
+  areas:
+    - area: 0.0.0.2           # Stub
+      kind: stub
+    - area: 0.0.0.3           # Totally Stubby
+      kind: stub
+      inter_area: false
+    - area: 0.0.0.4           # NSSA
+      kind: nssa
+    - area: 0.0.0.5           # Totally NSSA
+      kind: nssa
+      inter_area: false
 
 nodes:
 
