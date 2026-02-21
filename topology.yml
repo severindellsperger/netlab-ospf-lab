@@ -1,0 +1,99 @@
+---
+# NetLab OSPF Multi-Area Lab
+# ===========================
+# Demonstrates the following OSPF area types:
+#
+#   Area 0 (0.0.0.0) – Backbone
+#   Area 1 (0.0.0.1) – Regular (Standard) Area
+#   Area 2 (0.0.0.2) – Stub Area
+#   Area 3 (0.0.0.3) – Totally Stubby Area
+#   Area 4 (0.0.0.4) – Not-So-Stubby Area (NSSA)
+#
+# Device: FRRouting (FRR) – open-source routing suite
+# Provider: Containerlab (clab)
+
+defaults:
+  device: frr
+  provider: clab
+
+module: [ ospf ]
+
+# All nodes default to Area 0 (backbone) unless overridden at node level.
+ospf:
+  area: 0.0.0.0
+
+nodes:
+
+  # ── Area 0: Backbone ────────────────────────────────────────────────────────
+  bb:
+
+  # ── Area Border Routers (ABRs) ──────────────────────────────────────────────
+  abr1:   # Area 0 ↔ Area 1 (Regular)
+  abr2:   # Area 0 ↔ Area 2 (Stub)
+  abr3:   # Area 0 ↔ Area 3 (Totally Stubby)
+  abr4:   # Area 0 ↔ Area 4 (NSSA)
+
+  # ── Area 1: Regular (Standard) Area ─────────────────────────────────────────
+  # Receives all LSA types (1-5). Identical behaviour to the backbone area.
+  r1:
+    ospf:
+      area: 0.0.0.1
+
+  # ── Area 2: Stub Area ────────────────────────────────────────────────────────
+  # Type-5 (external) LSAs are blocked. The ABR injects a default route instead.
+  r2:
+    ospf:
+      area: 0.0.0.2
+
+  # ── Area 3: Totally Stubby Area ──────────────────────────────────────────────
+  # Type-3, -4, and -5 LSAs are all blocked.
+  # Only a single default route from the ABR is accepted.
+  r3:
+    ospf:
+      area: 0.0.0.3
+
+  # ── Area 4: Not-So-Stubby Area (NSSA) ───────────────────────────────────────
+  # Type-5 LSAs are blocked, but external routes can be imported by an ASBR
+  # inside the area as Type-7 LSAs (converted to Type-5 at the ABR).
+  # r4 acts as both an internal router and ASBR (redistributes a loopback).
+  r4:
+    ospf:
+      area: 0.0.0.4
+
+links:
+
+  # ── Area 0: Backbone connections ────────────────────────────────────────────
+  - bb-abr1
+  - bb-abr2
+  - bb-abr3
+  - bb-abr4
+
+  # ── Area 1: Regular Area ────────────────────────────────────────────────────
+  - abr1:
+      ospf:
+        area: 0.0.0.1
+    r1:
+
+  # ── Area 2: Stub Area ───────────────────────────────────────────────────────
+  - abr2:
+      ospf:
+        area: 0.0.0.2
+    r2:
+
+  # ── Area 3: Totally Stubby Area ─────────────────────────────────────────────
+  - abr3:
+      ospf:
+        area: 0.0.0.3
+    r3:
+
+  # ── Area 4: NSSA ────────────────────────────────────────────────────────────
+  - abr4:
+      ospf:
+        area: 0.0.0.4
+    r4:
+
+  # Loopback stub on r4 – simulates an external network that r4 (ASBR) will
+  # redistribute into OSPF as a Type-7 LSA inside Area 4.
+  - r4:
+    type: stub
+    prefix: 10.99.0.0/24
