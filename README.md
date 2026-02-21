@@ -39,22 +39,20 @@ graph TB
     abr3 --- r3
 
     subgraph area4["Area 4 — NSSA"]
-        r4["r4 / ASBR"]
-        ext4[("`10.99.0.0/24
-        external stub`")]
+        r4["r4 (ASBR)"]
     end
     abr4 --- r4
-    r4 -. "`redistribute
-    (Type-7 LSA)`" .-> ext4
+
+    ext4[("10.99.0.0/24\n(external, not in OSPF)")]
+    r4 -. "redistribute connected\nas Type-7 LSA" .-> ext4
 
     subgraph area5["Area 5 — Totally NSSA"]
-        r5["r5 / ASBR"]
-        ext5[("`10.100.0.0/24
-        external stub`")]
+        r5["r5 (ASBR)"]
     end
     abr5 --- r5
-    r5 -. "`redistribute
-    (Type-7 LSA)`" .-> ext5
+
+    ext5[("10.100.0.0/24\n(external, not in OSPF)")]
+    r5 -. "redistribute connected\nas Type-7 LSA" .-> ext5
 ```
 
 | Router | Role | Area |
@@ -101,17 +99,20 @@ router ospf
 > `no-summary` is the keyword that suppresses Type-3 summary LSAs, making the stub area "totally stubby".
 
 ### Area 4 — Not-So-Stubby Area (NSSA)
-An NSSA blocks Type-5 external LSAs like a stub area, **but allows an ASBR inside the area** to redistribute external routes. Instead of Type-5, the ASBR generates **Type-7 LSAs** that are local to the NSSA. The ABR (`abr4`) translates selected Type-7 LSAs into Type-5 LSAs before flooding them into the backbone. In this lab `r4` acts as the ASBR and redistributes the `10.99.0.0/24` stub network.
+An NSSA blocks Type-5 external LSAs like a stub area, **but allows an ASBR inside the area** to redistribute external routes. Instead of Type-5, the ASBR generates **Type-7 LSAs** that are local to the NSSA. The ABR (`abr4`) translates selected Type-7 LSAs into Type-5 LSAs before flooding them into the backbone. In this lab `r4` acts as the ASBR.
+
+The `10.99.0.0/24` link on `r4` has `role: external`, which means the interface is **not** part of the OSPF process at all. NetLab's `ospf.import: [connected]` on `r4` redistributes those connected routes into OSPF as Type-7 LSAs.
 
 The `ospf.areas` plugin automatically applies the equivalent of:
 ```
 router ospf
  area 0.0.0.4 nssa
 ```
-The stub prefix (`10.99.0.0/24`) is a directly connected network on `r4`; NetLab's OSPF module includes it in OSPF automatically — no manual redistribution is needed.
 
 ### Area 5 — Totally NSSA (NSSA No-Summary)
-A Totally NSSA combines the properties of NSSA and Totally Stubby: Type-5 external LSAs are blocked *and* Type-3 inter-area summary LSAs are suppressed. An ASBR inside the area can still inject external routes as **Type-7 LSAs** (converted at the ABR to Type-5 for the backbone). Router `r5` receives only intra-area routes and a single default route from `abr5`, while its own external prefix (`10.100.0.0/24`) is redistributed as a Type-7 LSA.
+A Totally NSSA combines the properties of NSSA and Totally Stubby: Type-5 external LSAs are blocked *and* Type-3 inter-area summary LSAs are suppressed. An ASBR inside the area can still inject external routes as **Type-7 LSAs** (converted at the ABR to Type-5 for the backbone). Router `r5` receives only intra-area routes and a single default route from `abr5`.
+
+The `10.100.0.0/24` link on `r5` has `role: external`, which means the interface is **not** part of the OSPF process at all. NetLab's `ospf.import: [connected]` on `r5` redistributes those connected routes into OSPF as Type-7 LSAs.
 
 The `ospf.areas` plugin automatically applies the equivalent of:
 ```
@@ -119,8 +120,6 @@ router ospf
  area 0.0.0.5 nssa no-summary
 ```
 > `no-summary` added to the `nssa` keyword suppresses Type-3 summary LSAs, making it "Totally NSSA".
-
-The stub prefix (`10.100.0.0/24`) is a directly connected network on `r5`; NetLab's OSPF module includes it in OSPF automatically — no manual redistribution is needed.
 
 ---
 

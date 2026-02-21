@@ -71,19 +71,23 @@ nodes:
   # ── Area 4: Not-So-Stubby Area (NSSA) ───────────────────────────────────────
   # Type-5 LSAs are blocked, but external routes can be imported by an ASBR
   # inside the area as Type-7 LSAs (converted to Type-5 at the ABR).
-  # r4 acts as both an internal router and ASBR (redistributes a loopback).
+  # r4 acts as ASBR: the 10.99.0.0/24 link is role:external (not part of OSPF)
+  # and is redistributed into OSPF via ospf.import as a Type-7 LSA.
   r4:
     ospf:
       area: 0.0.0.4
+      import: [ connected ]
 
   # ── Area 5: Totally NSSA (NSSA No-Summary) ──────────────────────────────────
   # Like NSSA, Type-5 LSAs are blocked and an ASBR can inject Type-7 LSAs.
   # Additionally, Type-3 inter-area summary LSAs are suppressed (no-summary),
   # so only intra-area routes and one default route reach r5.
-  # r5 acts as the internal router and ASBR (redistributes a loopback).
+  # r5 acts as ASBR: the 10.100.0.0/24 link is role:external (not part of OSPF)
+  # and is redistributed into OSPF via ospf.import as a Type-7 LSA.
   r5:
     ospf:
       area: 0.0.0.5
+      import: [ connected ]
 
 links:
 
@@ -118,10 +122,10 @@ links:
         area: 0.0.0.4
     r4:
 
-  # Loopback stub on r4 – simulates an external network that r4 (ASBR) will
-  # redistribute into OSPF as a Type-7 LSA inside Area 4.
+  # External network on r4 – role:external excludes this interface from OSPF.
+  # ospf.import: [connected] on r4 redistributes it into OSPF as a Type-7 LSA.
   - r4:
-    type: stub
+    role: external
     prefix: 10.99.0.0/24
 
   # ── Area 5: Totally NSSA ────────────────────────────────────────────────────
@@ -130,8 +134,8 @@ links:
         area: 0.0.0.5
     r5:
 
-  # Loopback stub on r5 – simulates an external network that r5 (ASBR) will
-  # redistribute into OSPF as a Type-7 LSA inside Area 5.
+  # External network on r5 – role:external excludes this interface from OSPF.
+  # ospf.import: [connected] on r5 redistributes it into OSPF as a Type-7 LSA.
   - r5:
-    type: stub
+    role: external
     prefix: 10.100.0.0/24
