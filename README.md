@@ -1,6 +1,6 @@
 # netlab-ospf-lab
 
-A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https://containerlab.dev) with [FRRouting (FRR)](https://frrouting.org) containers to demonstrate the five fundamental OSPF area types in a single, reproducible topology.
+A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https://containerlab.dev) with [FRRouting (FRR)](https://frrouting.org) containers to demonstrate the six fundamental OSPF area types in a single, reproducible topology.
 
 ---
 
@@ -14,12 +14,14 @@ graph TB
         abr2["abr2 (ABR)"]
         abr3["abr3 (ABR)"]
         abr4["abr4 (ABR)"]
+        abr5["abr5 (ABR)"]
     end
 
     bb --- abr1
     bb --- abr2
     bb --- abr3
     bb --- abr4
+    bb --- abr5
 
     subgraph area1["Area 1 — Regular Area"]
         r1["r1"]
@@ -38,10 +40,17 @@ graph TB
 
     subgraph area4["Area 4 — NSSA"]
         r4["r4 / ASBR"]
-        ext[("10.99.0.0/24\nexternal stub")]
+        ext4[("10.99.0.0/24\nexternal stub")]
     end
     abr4 --- r4
-    r4 -. "redistribute\n(Type-7 LSA)" .-> ext
+    r4 -. "redistribute\n(Type-7 LSA)" .-> ext4
+
+    subgraph area5["Area 5 — Totally NSSA"]
+        r5["r5 / ASBR"]
+        ext5[("10.100.0.0/24\nexternal stub")]
+    end
+    abr5 --- r5
+    r5 -. "redistribute\n(Type-7 LSA)" .-> ext5
 ```
 
 | Router | Role | Area |
@@ -51,17 +60,19 @@ graph TB
 | `abr2` | Area Border Router | Area 0 ↔ Area 2 |
 | `abr3` | Area Border Router | Area 0 ↔ Area 3 |
 | `abr4` | Area Border Router | Area 0 ↔ Area 4 |
+| `abr5` | Area Border Router | Area 0 ↔ Area 5 |
 | `r1` | Internal router | Area 1 (Regular) |
 | `r2` | Internal router | Area 2 (Stub) |
 | `r3` | Internal router | Area 3 (Totally Stubby) |
 | `r4` | Internal router / ASBR | Area 4 (NSSA) |
+| `r5` | Internal router / ASBR | Area 5 (Totally NSSA) |
 
 ---
 
 ## OSPF Area Types Explained
 
 ### Area 0 — Backbone Area
-Every OSPF autonomous system has exactly one backbone area (`0.0.0.0`). All other areas must connect directly to it (via an ABR) to exchange routing information. The backbone carries all inter-area and external routes as Type-3/4/5 LSAs. In this lab `bb` is the central backbone router; the four ABRs (`abr1`–`abr4`) each straddle the backbone and their respective non-backbone area.
+Every OSPF autonomous system has exactly one backbone area (`0.0.0.0`). All other areas must connect directly to it (via an ABR) to exchange routing information. The backbone carries all inter-area and external routes as Type-3/4/5 LSAs. In this lab `bb` is the central backbone router; the five ABRs (`abr1`–`abr5`) each straddle the backbone and their respective non-backbone area.
 
 ### Area 1 — Regular (Standard) Area
 A regular area behaves identically to the backbone: it receives all LSA types (Type 1–5). Every prefix in the OSPF domain, including external routes redistributed anywhere else, is visible to `r1`. This is the default area type and requires no extra configuration.
@@ -94,6 +105,22 @@ router ospf
  area 0.0.0.4 nssa
 ```
 On `r4` additionally enable redistribution of the connected stub prefix:
+```
+router ospf
+ redistribute connected
+```
+
+### Area 5 — Totally NSSA (NSSA No-Summary)
+A Totally NSSA combines the properties of NSSA and Totally Stubby: Type-5 external LSAs are blocked *and* Type-3 inter-area summary LSAs are suppressed. An ASBR inside the area can still inject external routes as **Type-7 LSAs** (converted at the ABR to Type-5 for the backbone). Router `r5` receives only intra-area routes and a single default route from `abr5`, while its own external prefix (`10.100.0.0/24`) is redistributed as a Type-7 LSA.
+
+Configuration required on **all routers in Area 5** (`abr5` and `r5`):
+```
+router ospf
+ area 0.0.0.5 nssa no-summary
+```
+> `no-summary` added to the `nssa` keyword suppresses Type-3 summary LSAs, making it "Totally NSSA".
+
+On `r5` additionally enable redistribution of the connected stub prefix:
 ```
 router ospf
  redistribute connected
@@ -173,6 +200,14 @@ done
 
 # r4 – redistribute the external stub prefix
 netlab connect r4 -- vtysh -c "conf t" -c "router ospf" -c "redistribute connected"
+
+# Area 5 – Totally NSSA
+for node in abr5 r5; do
+  netlab connect $node -- vtysh -c "conf t" -c "router ospf" -c "area 0.0.0.5 nssa no-summary"
+done
+
+# r5 – redistribute the external stub prefix
+netlab connect r5 -- vtysh -c "conf t" -c "router ospf" -c "redistribute connected"
 ```
 
 ---

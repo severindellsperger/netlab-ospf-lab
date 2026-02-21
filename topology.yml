@@ -8,6 +8,7 @@
 #   Area 2 (0.0.0.2) – Stub Area
 #   Area 3 (0.0.0.3) – Totally Stubby Area
 #   Area 4 (0.0.0.4) – Not-So-Stubby Area (NSSA)
+#   Area 5 (0.0.0.5) – Totally NSSA (NSSA No-Summary)
 #
 # Device: FRRouting (FRR) – open-source routing suite
 # Provider: Containerlab (clab)
@@ -32,6 +33,7 @@ nodes:
   abr2:   # Area 0 ↔ Area 2 (Stub)
   abr3:   # Area 0 ↔ Area 3 (Totally Stubby)
   abr4:   # Area 0 ↔ Area 4 (NSSA)
+  abr5:   # Area 0 ↔ Area 5 (Totally NSSA)
 
   # ── Area 1: Regular (Standard) Area ─────────────────────────────────────────
   # Receives all LSA types (1-5). Identical behaviour to the backbone area.
@@ -60,6 +62,15 @@ nodes:
     ospf:
       area: 0.0.0.4
 
+  # ── Area 5: Totally NSSA (NSSA No-Summary) ──────────────────────────────────
+  # Like NSSA, Type-5 LSAs are blocked and an ASBR can inject Type-7 LSAs.
+  # Additionally, Type-3 inter-area summary LSAs are suppressed (no-summary),
+  # so only intra-area routes and one default route reach r5.
+  # r5 acts as the internal router and ASBR (redistributes a loopback).
+  r5:
+    ospf:
+      area: 0.0.0.5
+
 links:
 
   # ── Area 0: Backbone connections ────────────────────────────────────────────
@@ -67,6 +78,7 @@ links:
   - bb-abr2
   - bb-abr3
   - bb-abr4
+  - bb-abr5
 
   # ── Area 1: Regular Area ────────────────────────────────────────────────────
   - abr1:
@@ -97,3 +109,15 @@ links:
   - r4:
     type: stub
     prefix: 10.99.0.0/24
+
+  # ── Area 5: Totally NSSA ────────────────────────────────────────────────────
+  - abr5:
+      ospf:
+        area: 0.0.0.5
+    r5:
+
+  # Loopback stub on r5 – simulates an external network that r5 (ASBR) will
+  # redistribute into OSPF as a Type-7 LSA inside Area 5.
+  - r5:
+    type: stub
+    prefix: 10.100.0.0/24
