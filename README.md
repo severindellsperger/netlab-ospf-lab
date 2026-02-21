@@ -53,7 +53,8 @@ graph TB
         external stub`")]
     end
     abr5 --- r5
-    r5 -. "redistribute\n(Type-7 LSA)" .-> ext5
+    r5 -. "`redistribute
+    (Type-7 LSA)`" .-> ext5
 ```
 
 | Router | Role | Area |
