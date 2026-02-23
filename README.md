@@ -1,5 +1,7 @@
 # netlab-ospf-lab
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/severindellsperger/netlab-ospf-lab?machine=basicLinux32gb&devcontainer_path=.devcontainer/devcontainer.json)
+
 A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https://containerlab.dev) with [FRRouting (FRR)](https://frrouting.org) containers to demonstrate the six fundamental OSPF area types in a single, reproducible topology.
 
 ---
@@ -144,6 +146,8 @@ router ospf
 
 ## Prerequisites
 
+> **Tip:** You can skip local setup entirely by launching the lab in [GitHub Codespaces](#-launch-in-github-codespaces) — all dependencies are pre-installed in the dev container.
+
 ### 1. Install NetLab
 Follow the official installation guide:
 👉 **https://netlab.tools/install/**
@@ -160,6 +164,16 @@ netlab install --all
 git clone https://github.com/severindellsperger/netlab-ospf-lab.git
 cd netlab-ospf-lab
 ```
+
+---
+
+## 🚀 Launch in GitHub Codespaces
+
+Click the button below to open this lab in a pre-configured cloud environment — no local installation required:
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/severindellsperger/netlab-ospf-lab?machine=basicLinux32gb&devcontainer_path=.devcontainer/devcontainer.json)
+
+Once the Codespace is ready, run `netlab up` in the terminal to start the lab.
 
 ---
 
@@ -187,6 +201,16 @@ netlab connect r3 -- vtysh -c "show ip ospf database"
 
 # Show the routing table on r2 (Stub – external routes replaced by a default route)
 netlab connect r2 -- vtysh -c "show ip route ospf"
+```
+
+You can also open an **interactive vtysh shell** on any device, or use the `--show` flag as a convenient shorthand:
+
+```bash
+# Open an interactive vtysh shell on bb
+netlab connect bb vtysh
+
+# Use --show for quick read-only commands (no need for the full vtysh -c syntax)
+netlab connect bb --show ip ospf neighbor
 ```
 
 You can also connect directly to a container's interactive FRR shell using `docker exec`. The container name follows the pattern `clab-<lab-name>-<node>`, for example:
