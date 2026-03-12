@@ -10,11 +10,11 @@
 #   Area 4 (0.0.0.4) – Not-So-Stubby Area (NSSA)
 #   Area 5 (0.0.0.5) – Totally NSSA (NSSA No-Summary)
 #
-# Device: FRRouting (FRR) – open-source routing suite
+# Device: Nokia SR Linux (srl) – free container image, pulled automatically
 # Provider: Containerlab (clab)
 
 defaults:
-  device: frr
+  device: srl
   provider: clab
 
 module: [ ospf ]

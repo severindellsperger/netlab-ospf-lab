@@ -2,7 +2,9 @@
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/severindellsperger/netlab-ospf-lab?machine=basicLinux32gb&devcontainer_path=.devcontainer/devcontainer.json)
 
-A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https://containerlab.dev) with [FRRouting (FRR)](https://frrouting.org) containers to demonstrate the six fundamental OSPF area types in a single, reproducible topology.
+A hands-on lab that uses [NetLab](https://netlab.tools) and [Containerlab](https://containerlab.dev) with [Nokia SR Linux](https://learn.srlinux.dev) containers to demonstrate the six fundamental OSPF area types in a single, reproducible topology.
+
+> **No manual image setup required.** The Nokia SR Linux container image (`ghcr.io/nokia/srlinux`) is free and publicly available. Containerlab pulls it automatically on first run.
 
 ---
 
@@ -103,31 +105,37 @@ A regular area behaves identically to the backbone: it receives all LSA types (T
 ### Area 2 — Stub Area
 A stub area blocks **Type-5 LSAs** (AS-external routes). Instead of carrying external prefixes, the ABR (`abr2`) injects a single **default route** (`0.0.0.0/0`) into the area. This reduces the size of the LSDB and is ideal for sites that have only one exit point toward the rest of the network. Router `r2` reaches all external destinations through that default route.
 
-The `ospf.areas` plugin automatically applies the equivalent of:
+The `ospf.areas` plugin automatically applies the SR Linux equivalent of:
 ```
-router ospf
- area 0.0.0.2 stub
+# Under network-instance default / protocols / ospf / instance 1
+area 0.0.0.2 {
+    stub-area true
+}
 ```
 
 ### Area 3 — Totally Stubby Area
-A totally stubby area is a Cisco-originated extension (supported by FRR) that blocks **Type-3, -4, and -5 LSAs**, leaving only the default route injected by the ABR. Router `r3` has the smallest possible LSDB: only intra-area routes and one default route. This is the most restrictive area type and is ideal for stub sites with a single upstream ABR.
+A totally stubby area blocks **Type-3, -4, and -5 LSAs**, leaving only the default route injected by the ABR. Router `r3` has the smallest possible LSDB: only intra-area routes and one default route. This is the most restrictive area type and is ideal for stub sites with a single upstream ABR.
 
-The `ospf.areas` plugin automatically applies the equivalent of:
+The `ospf.areas` plugin automatically applies the SR Linux equivalent of:
 ```
-router ospf
- area 0.0.0.3 stub no-summary
+area 0.0.0.3 {
+    stub-area true
+    summary-lsa false   # suppresses Type-3 summary LSAs → "totally stubby"
+}
 ```
-> `no-summary` is the keyword that suppresses Type-3 summary LSAs, making the stub area "totally stubby".
 
 ### Area 4 — Not-So-Stubby Area (NSSA)
 An NSSA blocks Type-5 external LSAs like a stub area, **but allows an ASBR inside the area** to redistribute external routes. Instead of Type-5, the ASBR generates **Type-7 LSAs** that are local to the NSSA. The ABR (`abr4`) translates selected Type-7 LSAs into Type-5 LSAs before flooding them into the backbone. In this lab `r4` acts as the ASBR.
 
 The `10.99.0.0/24` link on `r4` has `role: external`, which means the interface is **not** part of the OSPF process at all. NetLab's `ospf.import: [connected]` on `r4` redistributes those connected routes into OSPF as Type-7 LSAs.
 
-The `ospf.areas` plugin automatically applies the equivalent of:
+The `ospf.areas` plugin automatically applies the SR Linux equivalent of:
 ```
-router ospf
- area 0.0.0.4 nssa
+area 0.0.0.4 {
+    nssa {
+        advertise-type-7 true
+    }
+}
 ```
 
 ### Area 5 — Totally NSSA (NSSA No-Summary)
@@ -135,12 +143,15 @@ A Totally NSSA combines the properties of NSSA and Totally Stubby: Type-5 extern
 
 The `10.100.0.0/24` link on `r5` has `role: external`, which means the interface is **not** part of the OSPF process at all. NetLab's `ospf.import: [connected]` on `r5` redistributes those connected routes into OSPF as Type-7 LSAs.
 
-The `ospf.areas` plugin automatically applies the equivalent of:
+The `ospf.areas` plugin automatically applies the SR Linux equivalent of:
 ```
-router ospf
- area 0.0.0.5 nssa no-summary
+area 0.0.0.5 {
+    nssa {
+        advertise-type-7 true
+        summary-lsa false   # suppresses Type-3 summary LSAs → "totally NSSA"
+    }
+}
 ```
-> `no-summary` added to the `nssa` keyword suppresses Type-3 summary LSAs, making it "Totally NSSA".
 
 ---
 
@@ -152,7 +163,7 @@ router ospf
 Follow the official installation guide:
 👉 **https://netlab.tools/install/**
 
-NetLab installs all required dependencies (including Containerlab and the FRR container image) automatically. The quickest way to get started:
+NetLab installs all required dependencies (including Containerlab) automatically. The Nokia SR Linux image is pulled by Containerlab on first use — no manual image registration needed:
 
 ```bash
 python3 -m pip install networklab
@@ -186,37 +197,35 @@ netlab up
 `netlab up` will:
 1. Parse `topology.yml` and calculate IP addresses and OSPF parameters.
 2. Use the `ospf.areas` plugin to automatically configure stub, totally-stubby, NSSA, and totally-NSSA area types on every router.
-3. Generate Containerlab and FRR configuration files.
-4. Start all containers via Containerlab.
-5. Deploy the generated FRR configuration to every container.
+3. Generate Containerlab and SR Linux configuration files.
+4. Pull the Nokia SR Linux image (`ghcr.io/nokia/srlinux`) automatically if not already cached.
+5. Start all containers via Containerlab.
+6. Deploy the generated SR Linux configuration to every container.
 
 After a few seconds all OSPF adjacencies should come up. You can verify:
 
 ```bash
 # Show OSPF neighbours on the backbone router
-netlab connect bb -- vtysh -c "show ip ospf neighbor"
+netlab connect bb -- sr_cli "show network-instance default protocols ospf neighbor"
 
 # Show the LSDB on r3 (Totally Stubby – should contain only Type-1 and the default Type-3)
-netlab connect r3 -- vtysh -c "show ip ospf database"
+netlab connect r3 -- sr_cli "show network-instance default protocols ospf database"
 
 # Show the routing table on r2 (Stub – external routes replaced by a default route)
-netlab connect r2 -- vtysh -c "show ip route ospf"
+netlab connect r2 -- sr_cli "show network-instance default route-table ipv4-unicast protocol ospf"
 ```
 
-You can also open an **interactive vtysh shell** on any device, or use the `--show` flag as a convenient shorthand:
+You can also open an **interactive SR Linux CLI session** on any device using `netlab connect`:
 
 ```bash
-# Open an interactive vtysh shell on bb
-netlab connect bb vtysh
-
-# Use --show for quick read-only commands (no need for the full vtysh -c syntax)
-netlab connect bb --show ip ospf neighbor
+# Open an interactive SR Linux CLI on bb
+netlab connect bb
 ```
 
-You can also connect directly to a container's interactive FRR shell using `docker exec`. The container name follows the pattern `clab-<lab-name>-<node>`, for example:
+Or connect directly to the container via Docker. The container name follows the pattern `clab-<lab-name>-<node>`:
 
 ```bash
-docker exec -it clab-netlabospfla-r5 vtysh
+docker exec -it clab-netlabospflab-r5 sr_cli
 ```
 
 ---
@@ -228,6 +237,128 @@ netlab down
 ```
 
 `netlab down` destroys all containers and removes the generated configuration files, leaving the repository in a clean state.
+
+---
+
+## 📖 Important SR Linux Commands
+
+Below is a reference of the most useful SR Linux CLI commands for working with OSPF in this lab. All commands are entered at the SR Linux prompt (`A:node#`).
+
+### Connecting to a Node
+
+```bash
+# Interactive CLI session via netlab
+netlab connect <node>
+
+# Non-interactive: run a single command via netlab
+netlab connect <node> -- sr_cli "<command>"
+
+# Direct Docker access
+docker exec -it clab-netlabospflab-<node> sr_cli
+```
+
+### OSPF Status and Verification
+
+```bash
+# List all OSPF neighbors and their state (should be FULL)
+show network-instance default protocols ospf neighbor
+
+# Show detailed OSPF neighbor information (includes timers, interface, area)
+show network-instance default protocols ospf neighbor detail
+
+# Show the OSPF link-state database (all LSA types)
+show network-instance default protocols ospf database
+
+# Show the OSPF database for a specific area
+show network-instance default protocols ospf database area-id 0.0.0.2
+
+# Show OSPF-enabled interfaces and their state (DR/BDR election, area, cost)
+show network-instance default protocols ospf interface
+
+# Show OSPF area summary (area type, ABR/ASBR flags, LSA counts)
+show network-instance default protocols ospf area
+
+# Show detailed OSPF area configuration including stub/NSSA flags
+show network-instance default protocols ospf area detail
+```
+
+### Routing Table
+
+```bash
+# Show all routes in the default network instance
+show network-instance default route-table
+
+# Show only OSPF-learned routes (intra-area, inter-area, external)
+show network-instance default route-table ipv4-unicast protocol ospf
+
+# Show the full IPv4 route table with next-hop details
+show network-instance default route-table ipv4-unicast
+
+# Show a specific prefix
+show network-instance default route-table ipv4-unicast prefix 0.0.0.0/0
+```
+
+### Interfaces
+
+```bash
+# Show all interfaces and their operational state
+show interface
+
+# Show a specific interface (e.g., ethernet-1/1)
+show interface ethernet-1/1
+
+# Show interface IP addresses
+show interface brief
+```
+
+### Configuration (Read-Only Inspection)
+
+```bash
+# Show the running OSPF configuration
+info network-instance default protocols ospf
+
+# Show a specific OSPF area's configuration
+info network-instance default protocols ospf instance 1 area 0.0.0.2
+
+# Show routing policies (used for external route import/redistribution)
+info routing-policy
+```
+
+### Configuration Changes (for advanced exploration)
+
+SR Linux uses a candidate/commit model. Changes are staged before being applied:
+
+```bash
+# Enter candidate configuration mode
+enter candidate
+
+# Make a configuration change (example: adjust OSPF interface cost)
+set network-instance default protocols ospf instance 1 area 0.0.0.1 interface ethernet-1/1.0 metric 100
+
+# Review staged changes before applying
+diff
+
+# Apply the staged configuration
+commit now
+
+# Discard all staged changes
+discard now
+
+# Exit candidate mode without committing
+quit
+```
+
+### Useful Shortcuts
+
+| Command | Description |
+|---------|-------------|
+| `show network-instance default protocols ospf neighbor` | OSPF adjacency table |
+| `show network-instance default protocols ospf database` | Full LSDB |
+| `show network-instance default protocols ospf area detail` | Area types and flags |
+| `show network-instance default route-table ipv4-unicast protocol ospf` | OSPF routes only |
+| `show interface` | All interfaces |
+| `info network-instance default protocols ospf` | Running OSPF config |
+| `enter candidate` → `commit now` | Staged config workflow |
 
 ---
 
